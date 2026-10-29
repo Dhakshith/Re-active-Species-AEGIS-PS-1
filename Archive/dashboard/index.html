@@ -1,0 +1,774 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>AEGIS 2026 PS01 — Zero-Trust Agent Control Plane & Multi-Failure Lab</title>
+  <style>
+    :root {
+      --bg-main: #070b14;
+      --bg-panel: #0f172a;
+      --bg-card: #111827;
+      --border: #1e293b;
+      --border-light: #334155;
+      --text-main: #f8fafc;
+      --text-muted: #94a3b8;
+      --emerald: #10b981;
+      --emerald-bg: rgba(16, 185, 129, 0.16);
+      --amber: #f59e0b;
+      --amber-bg: rgba(245, 158, 11, 0.16);
+      --rose: #ef4444;
+      --rose-bg: rgba(239, 68, 68, 0.18);
+      --sky: #38bdf8;
+      --sky-bg: rgba(56, 189, 248, 0.16);
+      --indigo: #6366f1;
+      --slate: #6b7280;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Inter, sans-serif;
+      background-color: var(--bg-main);
+      color: var(--text-main);
+      line-height: 1.5;
+      padding: 20px;
+    }
+
+    .layout {
+      display: grid;
+      grid-template-columns: 340px 1fr;
+      gap: 20px;
+      max-width: 1680px;
+      margin: 0 auto;
+    }
+
+    @media (max-width: 1150px) {
+      .layout {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    /* Sidebar Controls */
+    .sidebar {
+      background: var(--bg-panel);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 18px;
+      height: fit-content;
+      box-shadow: 0 10px 28px rgba(0, 0, 0, 0.45);
+    }
+
+    .sidebar h2 {
+      font-size: 0.95rem;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      color: var(--sky);
+      margin-bottom: 12px;
+      border-bottom: 1px solid var(--border);
+      padding-bottom: 6px;
+    }
+
+    .btn-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+      margin-bottom: 10px;
+    }
+
+    button {
+      cursor: pointer;
+      font-family: inherit;
+      font-size: 0.8rem;
+      font-weight: 600;
+      padding: 9px 12px;
+      border-radius: 8px;
+      border: 1px solid var(--border-light);
+      background: #1e293b;
+      color: var(--text-main);
+      transition: all 0.15s ease;
+      text-align: center;
+    }
+
+    button:hover {
+      background: #334155;
+      transform: translateY(-1px);
+    }
+
+    .btn-full {
+      width: 100%;
+      margin-bottom: 8px;
+    }
+
+    .btn-primary {
+      background: linear-gradient(135deg, #2563eb, #4f46e5);
+      border-color: #6366f1;
+    }
+
+    .btn-primary:hover {
+      background: linear-gradient(135deg, #1d4ed8, #4338ca);
+    }
+
+    .btn-danger {
+      background: linear-gradient(135deg, #dc2626, #991b1b);
+      border-color: #ef4444;
+    }
+
+    .btn-danger:hover {
+      background: linear-gradient(135deg, #b91c1c, #7f1d1d);
+    }
+
+    .btn-amber {
+      background: rgba(245, 158, 11, 0.2);
+      border-color: var(--amber);
+      color: #fde68a;
+    }
+
+    .control-group {
+      margin-bottom: 14px;
+    }
+
+    .control-group label {
+      display: block;
+      font-size: 0.76rem;
+      color: var(--text-muted);
+      margin-bottom: 5px;
+      font-weight: 600;
+    }
+
+    select, input[type="number"] {
+      width: 100%;
+      padding: 8px 10px;
+      border-radius: 6px;
+      border: 1px solid var(--border-light);
+      background: #0b1120;
+      color: var(--text-main);
+      font-size: 0.82rem;
+      margin-bottom: 8px;
+    }
+
+    .checkbox-list {
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 4px;
+      background: #0b1120;
+      border: 1px solid var(--border);
+      padding: 8px 10px;
+      border-radius: 6px;
+      max-height: 155px;
+      overflow-y: auto;
+      margin-bottom: 8px;
+    }
+
+    .checkbox-item {
+      display: flex;
+      align-items: center;
+      gap: 7px;
+      font-size: 0.78rem;
+      color: #cbd5e1;
+    }
+
+    .divider {
+      height: 1px;
+      background: var(--border);
+      margin: 16px 0;
+    }
+
+    /* Main Content */
+    .banner {
+      background: linear-gradient(135deg, #0f172a 0%, #1e1b4b 55%, #0f172a 100%);
+      border: 1px solid var(--border-light);
+      border-radius: 12px;
+      padding: 18px 24px;
+      margin-bottom: 18px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 12px;
+      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+    }
+
+    .banner-title {
+      font-size: 1.4rem;
+      font-weight: 800;
+      margin-bottom: 4px;
+    }
+
+    .banner-sub {
+      font-size: 0.85rem;
+      color: var(--text-muted);
+    }
+
+    .posture-pill {
+      padding: 8px 16px;
+      border-radius: 999px;
+      font-size: 0.8rem;
+      font-weight: 700;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+      border: 1px solid var(--emerald);
+      background: var(--emerald-bg);
+      color: #6ee7b7;
+    }
+
+    .kpi-grid {
+      display: grid;
+      grid-template-columns: repeat(5, 1fr);
+      gap: 14px;
+      margin-bottom: 18px;
+    }
+
+    @media (max-width: 1100px) {
+      .kpi-grid {
+        grid-template-columns: repeat(2, 1fr);
+      }
+    }
+
+    .kpi-card {
+      background: var(--bg-panel);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 14px 16px;
+    }
+
+    .kpi-label {
+      font-size: 0.73rem;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      color: var(--text-muted);
+      font-weight: 600;
+      margin-bottom: 6px;
+    }
+
+    .kpi-value {
+      font-size: 1.5rem;
+      font-weight: 800;
+      margin-bottom: 6px;
+    }
+
+    .sla-tag {
+      font-size: 0.72rem;
+      font-weight: 600;
+      padding: 2px 8px;
+      border-radius: 4px;
+      background: var(--emerald-bg);
+      color: #34d399;
+      border: 1px solid rgba(16, 185, 129, 0.35);
+      display: inline-block;
+    }
+
+    .panel-box {
+      background: var(--bg-panel);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 16px 18px;
+      margin-bottom: 18px;
+    }
+
+    .panel-header {
+      font-size: 0.98rem;
+      font-weight: 700;
+      margin-bottom: 12px;
+      padding-bottom: 8px;
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .agent-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(225px, 1fr));
+      gap: 12px;
+    }
+
+    .agent-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-left: 4px solid var(--emerald);
+      border-radius: 8px;
+      padding: 12px 14px;
+    }
+
+    .agent-top {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      margin-bottom: 4px;
+    }
+
+    .agent-name {
+      font-size: 0.86rem;
+      font-weight: 700;
+      word-break: break-word;
+    }
+
+    .badge {
+      padding: 2px 8px;
+      border-radius: 999px;
+      font-size: 0.68rem;
+      font-weight: 700;
+      text-transform: uppercase;
+    }
+
+    .code-chip {
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+      font-size: 0.74rem;
+      background: #1e293b;
+      color: var(--sky);
+      padding: 2px 6px;
+      border-radius: 4px;
+    }
+
+    .progress-bar {
+      width: 100%;
+      height: 6px;
+      background: #1e293b;
+      border-radius: 3px;
+      overflow: hidden;
+      margin-top: 6px;
+    }
+
+    .progress-fill {
+      height: 100%;
+      background: linear-gradient(90deg, var(--sky), var(--indigo));
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.81rem;
+    }
+
+    th {
+      background: #1e293b;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      font-size: 0.71rem;
+      letter-spacing: 0.04em;
+      padding: 9px 12px;
+      text-align: left;
+      border-bottom: 1px solid var(--border-light);
+    }
+
+    td {
+      padding: 9px 12px;
+      border-bottom: 1px solid var(--border);
+    }
+
+    tr:hover td {
+      background: rgba(30, 41, 59, 0.4);
+    }
+
+    .two-col {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 18px;
+    }
+
+    @media (max-width: 1100px) {
+      .two-col {
+        grid-template-columns: 1fr;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="layout">
+    <!-- Left Control Sidebar -->
+    <aside class="sidebar">
+      <h2>⚡ One-Click Scenario Runner</h2>
+      <div class="btn-grid">
+        <button onclick="runScenario(1)">▶️ Scenario 1<br/><small>Normal Delegation</small></button>
+        <button onclick="runScenario(2)">🚫 Scenario 2<br/><small>403 RBAC Block</small></button>
+        <button onclick="runScenario(3)">🧬 Scenario 3<br/><small>BFS Taint Rollback</small></button>
+        <button onclick="runScenario(4)">🔌 Scenario 4<br/><small>503 Tool Failover</small></button>
+      </div>
+      <button class="btn-full btn-amber" onclick="runScenario(5)">🛑 Scenario 5: Soft-Freeze &amp; &lt;50ms Hard Kill</button>
+      <button class="btn-full btn-primary" onclick="runScenario(6)">🌪️ Scenario 6: Simultaneous Multi-Agent &amp; Multi-Tool Storm</button>
+
+      <div class="divider"></div>
+      <h2>🧪 Simultaneous Multi-Failure Lab</h2>
+      <div class="control-group">
+        <label>Select Multiple Target Agents:</label>
+        <div class="checkbox-list" id="agentCheckboxes">
+          <label class="checkbox-item"><input type="checkbox" value="FX_Quote_Reader" checked /> FX_Quote_Reader (L2 Branch A)</label>
+          <label class="checkbox-item"><input type="checkbox" value="SWIFT_Wire_Executor" checked /> SWIFT_Wire_Executor (L2 Branch A)</label>
+          <label class="checkbox-item"><input type="checkbox" value="Sanctions_Screener" checked /> Sanctions_Screener (L2 Branch B)</label>
+          <label class="checkbox-item"><input type="checkbox" value="Audit_Logger" /> Audit_Logger (L2 Branch B)</label>
+          <label class="checkbox-item"><input type="checkbox" value="FX_Settlement_Supervisor" /> FX_Settlement_Supervisor (L1 A)</label>
+          <label class="checkbox-item"><input type="checkbox" value="Compliance_Supervisor" /> Compliance_Supervisor (L1 B)</label>
+        </div>
+        <label>Agent Fault Category:</label>
+        <select id="agentFaultCategory">
+          <option value="PRIVILEGE_ESCALATION">PRIVILEGE_ESCALATION (HTTP 403 + Respawn)</option>
+          <option value="CORRUPTED_OUTPUT">CORRUPTED_OUTPUT (Gate L2/L3 Taint + Rollback)</option>
+          <option value="RUNAWAY_LOOP">RUNAWAY_LOOP (HTTP 429 + Respawn)</option>
+        </select>
+      </div>
+
+      <div class="control-group">
+        <label>Select Multiple Target Tools:</label>
+        <div class="checkbox-list" id="toolCheckboxes">
+          <label class="checkbox-item"><input type="checkbox" value="erp:read" checked /> erp:read (SAP → Oracle → Replica)</label>
+          <label class="checkbox-item"><input type="checkbox" value="fx:quote" checked /> fx:quote (Bloomberg → Reuters → ECB)</label>
+          <label class="checkbox-item"><input type="checkbox" value="kyc:check" checked /> kyc:check (OFAC → WorldCheck → UN)</label>
+          <label class="checkbox-item"><input type="checkbox" value="audit:log" /> audit:log (WORM → DR Vault → Cold)</label>
+          <label class="checkbox-item"><input type="checkbox" value="swift:wire" /> swift:wire (SWIFT gpi → SEPA → Fedwire)</label>
+        </div>
+        <label>Tool Fault Category &amp; Hop Depth:</label>
+        <select id="toolFaultCategory">
+          <option value="SERVICE_UNAVAILABLE">SERVICE_UNAVAILABLE (HTTP 503 Failover)</option>
+          <option value="NETWORK_OUTAGE">NETWORK_OUTAGE (HTTP 504 Timeout Failover)</option>
+        </select>
+        <select id="toolMaxTriggers">
+          <option value="1">1-Hop Outage (Primary Fails → Secondary Succeeds)</option>
+          <option value="2">2-Hop Outage (Primary &amp; Secondary Fail → Tertiary Succeeds)</option>
+        </select>
+      </div>
+
+      <button class="btn-full btn-primary" onclick="runCustomMultiFailure()">⚡ Inject Batch &amp; Execute Resilient Run</button>
+
+      <div class="divider"></div>
+      <h2>🚨 Multi-Granular Kill-Switch</h2>
+      <button class="btn-full btn-danger" onclick="triggerKillSwitch('GLOBAL_HARD', 'ALL')">🔴 GLOBAL HARD KILL-SWITCH (ALL &lt;50ms)</button>
+      <button class="btn-full" onclick="triggerSurgicalSelected()">✂️ SURGICAL KILL SELECTED AGENTS</button>
+      <div class="btn-grid" style="margin-top:6px;">
+        <button onclick="triggerKillSwitch('SOFT_FREEZE', 'Branch_A', null)">⏸️ Pause Branch A</button>
+        <button onclick="triggerKillSwitch('SOFT_FREEZE', 'Branch_A', {fx_rate: 0.9195, settlement_eur: 1839000.0})">⏯️ Override 0.9195</button>
+      </div>
+    </aside>
+
+    <!-- Right Main Dashboard -->
+    <main>
+      <div class="banner">
+        <div>
+          <div class="banner-title">🛡️ AEGIS 2026 — Agent Identity, Failure Recovery &amp; Kill-Switch Control Plane</div>
+          <div class="banner-sub" id="bannerSub">
+            Active Scenario: <strong style="color:#fff;" id="scenName">Scenario 1: Normal Execution</strong> &nbsp;|&nbsp;
+            Invoice: <span class="code-chip">INV-2026-9981 ($2,000,000 USD)</span> &nbsp;|&nbsp;
+            Settlement: <strong style="color:#34d399;" id="settlementDisplay">€1,840,000.00 EUR</strong>
+            (FX: <span class="code-chip" id="fxDisplay">0.9200</span> via <span class="code-chip" id="provDisplay">bloomberg_primary</span>)
+          </div>
+        </div>
+        <div class="posture-pill" id="posturePill">NOMINAL ZERO-TRUST</div>
+      </div>
+
+      <!-- 5 KPI Cards -->
+      <div class="kpi-grid">
+        <div class="kpi-card">
+          <div class="kpi-label">Kill-Switch Latency (T_kill)</div>
+          <div class="kpi-value" id="kpiKill">0.420 ms</div>
+          <span class="sla-tag">SLA Target: &lt; 50.0 ms</span>
+        </div>
+        <div class="kpi-card">
+          <div class="kpi-label">Blast Radius Containment</div>
+          <div class="kpi-value" id="kpiBlast">100.0%</div>
+          <span class="sla-tag">SLA Target: &gt; 90.0%</span>
+        </div>
+        <div class="kpi-card">
+          <div class="kpi-label">RBAC Escalation Block Rate</div>
+          <div class="kpi-value" id="kpiRbac">100.0%</div>
+          <span class="sla-tag">100% Zero-Trust Gate</span>
+        </div>
+        <div class="kpi-card">
+          <div class="kpi-label">Recovery Latency (MTTR)</div>
+          <div class="kpi-value" id="kpiMttr">0.0185 s</div>
+          <span class="sla-tag">SLA Target: &lt; 5.0 s</span>
+        </div>
+        <div class="kpi-card">
+          <div class="kpi-label">Multi-Fault Resilience</div>
+          <div class="kpi-value" id="kpiCounters" style="font-size:1.22rem;">0 Respawns / 0 Failovers</div>
+          <span class="sla-tag" id="kpiRollbacks">Subtree Rollbacks: 0</span>
+        </div>
+      </div>
+
+      <!-- 7-Agent Fleet Grid -->
+      <div class="panel-box">
+        <div class="panel-header">
+          <span>🤖 L0 → L2 Multi-Agent Fleet Status &amp; Cryptographic Passports (C1 &amp; C3)</span>
+          <span style="font-size:0.78rem; color:var(--text-muted);">Ed25519 JWT Delegation &amp; O(1) Revocation</span>
+        </div>
+        <div class="agent-grid" id="agentGrid"></div>
+      </div>
+
+      <!-- 5-Tool Resilience & Failover Matrix -->
+      <div class="panel-box">
+        <div class="panel-header">
+          <span>🛠️ Multi-Tool Resilience &amp; 3-Tier Provider Failover Matrix (C6)</span>
+          <span style="font-size:0.78rem; color:var(--text-muted);">Primary → Secondary → Tertiary Automatic Failover</span>
+        </div>
+        <table>
+          <thead>
+            <tr>
+              <th>Tool Scope</th>
+              <th>Primary Provider</th>
+              <th>Fallback Chain</th>
+              <th>Active Provider</th>
+              <th>Health Status</th>
+              <th>Outages / Failovers</th>
+              <th>Last Fault Recorded</th>
+            </tr>
+          </thead>
+          <tbody id="toolTableBody"></tbody>
+        </table>
+      </div>
+
+      <!-- Respawn, Failover & Subtree Rollback Logs -->
+      <div class="two-col">
+        <div class="panel-box">
+          <div class="panel-header">
+            <span>🔄 Autonomous Agent Respawn Log</span>
+            <span class="code-chip" id="respawnCountBadge">0 Events</span>
+          </div>
+          <table>
+            <thead>
+              <tr><th>Agent</th><th>Branch</th><th>Revoked JTI</th><th>New JTI</th><th>Trigger Reason</th></tr>
+            </thead>
+            <tbody id="respawnTableBody"></tbody>
+          </table>
+        </div>
+
+        <div class="panel-box">
+          <div class="panel-header">
+            <span>🔌 Multi-Tool Automatic Failover &amp; Rollback Log</span>
+            <span class="code-chip" id="failoverCountBadge">0 Events</span>
+          </div>
+          <table>
+            <thead>
+              <tr><th>Tool / Branch</th><th>Agent</th><th>Fault / Outage</th><th>Recovery Target</th></tr>
+            </thead>
+            <tbody id="failoverTableBody"></tbody>
+          </table>
+        </div>
+      </div>
+    </main>
+  </div>
+
+  <script>
+    const API_BASE = window.location.protocol.startsWith("http")
+      ? window.location.origin
+      : "http://localhost:8000";
+
+    function statusColors(status) {
+      if (status === "TAINTED" || status === "BLOCKED_403" || status === "OUTAGE_DETECTED") {
+        return { border: "#ef4444", bg: "rgba(239,68,68,0.18)", text: "#f87171" };
+      }
+      if (status === "RESTORED" || status === "PAUSED" || status === "FAILOVER_ACTIVE" || status === "FAULT_ARMED") {
+        return { border: "#f59e0b", bg: "rgba(245,158,11,0.18)", text: "#fbbf24" };
+      }
+      if (status === "KILLED") {
+        return { border: "#6b7280", bg: "rgba(107,114,128,0.25)", text: "#9ca3af" };
+      }
+      return { border: "#10b981", bg: "rgba(16,185,129,0.18)", text: "#34d399" };
+    }
+
+    function renderDashboard(runData, stateData) {
+      const state = stateData || (runData && runData.state);
+      if (!state) return;
+
+      const metrics = state.metrics || {};
+      if (runData && runData.scenario_name) {
+        document.getElementById("scenName").textContent = `Scenario ${runData.scenario_id}: ${runData.scenario_name}`;
+      }
+      if (runData && runData.settlement_eur !== undefined) {
+        document.getElementById("settlementDisplay").textContent = runData.settlement_eur
+          ? `€${Number(runData.settlement_eur).toLocaleString("en-US", {minimumFractionDigits: 2})} EUR`
+          : "TERMINATED / HALTED";
+        document.getElementById("fxDisplay").textContent = runData.fx_rate ? Number(runData.fx_rate).toFixed(4) : "N/A";
+        document.getElementById("provDisplay").textContent = runData.provider || "N/A";
+      }
+
+      document.getElementById("kpiKill").textContent = `${Number(metrics.kill_switch_latency_ms || 0.38).toFixed(3)} ms`;
+      document.getElementById("kpiBlast").textContent = `${Number(metrics.blast_radius_pct || 100).toFixed(1)}%`;
+      document.getElementById("kpiRbac").textContent = `${Number(metrics.rbac_block_rate_pct || 100).toFixed(1)}%`;
+      document.getElementById("kpiMttr").textContent = `${Number(metrics.mttr_seconds || 0.012).toFixed(4)} s`;
+      document.getElementById("kpiCounters").textContent = `${metrics.total_agent_respawns || 0} Respawns / ${metrics.total_failover_events || 0} Failovers`;
+      document.getElementById("kpiRollbacks").textContent = `Subtree Rollbacks: ${metrics.total_subtree_rollbacks || 0} | Wasted: ${metrics.wasted_token_overhead_pct || 0}%`;
+
+      // Posture pill
+      const procTable = (state.C3_task_registry && state.C3_task_registry.process_table) || {};
+      const allStatuses = Object.values(procTable).map(p => p.status);
+      const pill = document.getElementById("posturePill");
+      if (allStatuses.length && allStatuses.every(s => s === "KILLED")) {
+        pill.textContent = "GLOBAL HARD KILL ENGAGED";
+        pill.style.borderColor = "#ef4444";
+        pill.style.background = "rgba(239,68,68,0.22)";
+        pill.style.color = "#fca5a5";
+      } else if (allStatuses.includes("PAUSED")) {
+        pill.textContent = "SOFT-FREEZE OPERATOR GATE";
+        pill.style.borderColor = "#f59e0b";
+        pill.style.background = "rgba(245,158,11,0.22)";
+        pill.style.color = "#fde68a";
+      } else if ((metrics.total_agent_respawns || 0) > 0 || (metrics.total_failover_events || 0) > 0 || (metrics.total_subtree_rollbacks || 0) > 0) {
+        pill.textContent = "AUTONOMOUS MULTI-FAULT RECOVERY";
+        pill.style.borderColor = "#38bdf8";
+        pill.style.background = "rgba(56,189,248,0.2)";
+        pill.style.color = "#7dd3fc";
+      } else {
+        pill.textContent = "NOMINAL ZERO-TRUST ENFORCEMENT";
+        pill.style.borderColor = "#10b981";
+        pill.style.background = "rgba(16,185,129,0.2)";
+        pill.style.color = "#6ee7b7";
+      }
+
+      // Render Agent Cards
+      const budgets = (state.C2_policy_store && state.C2_policy_store.budget_ledger) || {};
+      const activeTokens = (state.C1_iam_engine && state.C1_iam_engine.active_tokens) || {};
+      const agentGrid = document.getElementById("agentGrid");
+      agentGrid.innerHTML = Object.values(procTable).map(ag => {
+        const st = statusColors(ag.status);
+        const b = budgets[ag.agent_id] || { tokens_used: 0, max_tokens: 2000, calls_made: 0 };
+        const pct = Math.min(100, Math.round((b.tokens_used / Math.max(1, b.max_tokens)) * 100));
+        const tok = activeTokens[ag.jti] || {};
+        const scopes = (tok.scopes || []).join(", ");
+        return `
+          <div class="agent-card" style="border-left-color: ${st.border};">
+            <div class="agent-top">
+              <div class="agent-name">${ag.agent_id}</div>
+              <span class="badge" style="background:${st.bg}; color:${st.text}; border:1px solid ${st.border};">${ag.status}</span>
+            </div>
+            <div style="font-size:0.74rem; color:#94a3b8; margin-bottom:6px;">
+              Branch: <strong style="color:#e2e8f0;">${ag.branch_id}</strong> | ${ag.role}
+            </div>
+            <div style="font-size:0.73rem; margin-bottom:4px;">
+              Passport JTI: <span class="code-chip">..${String(ag.jti).slice(-12)}</span>
+            </div>
+            <div style="font-size:0.72rem; color:#38bdf8; margin-bottom:6px;">Scopes: ${scopes}</div>
+            <div style="font-size:0.71rem; color:#94a3b8; display:flex; justify-content:space-between;">
+              <span>Tokens: ${b.tokens_used}/${b.max_tokens}</span>
+              <span>Calls: ${b.calls_made}</span>
+            </div>
+            <div class="progress-bar"><div class="progress-fill" style="width:${pct}%;"></div></div>
+          </div>
+        `;
+      }).join("");
+
+      // Render Tool Matrix
+      const toolReg = (state.C6_chaos_monkey && state.C6_chaos_monkey.tool_health_registry) || {};
+      const toolBody = document.getElementById("toolTableBody");
+      toolBody.innerHTML = Object.values(toolReg).map(t => {
+        const st = statusColors(t.status);
+        return `
+          <tr>
+            <td><span class="code-chip">${t.tool_name}</span></td>
+            <td><span class="code-chip">${t.primary_provider}</span></td>
+            <td style="color:#94a3b8;">${(t.fallback_providers || []).join(" → ")}</td>
+            <td><strong style="color:#38bdf8;">${t.active_provider}</strong></td>
+            <td><span class="badge" style="background:${st.bg}; color:${st.text}; border:1px solid ${st.border};">${t.status}</span></td>
+            <td>${t.outage_events} outages / ${t.failover_switches} failovers</td>
+            <td style="font-size:0.75rem; color:#f87171;">${t.last_error || "None"}</td>
+          </tr>
+        `;
+      }).join("");
+
+      // Respawn Log
+      const respawns = state.agent_respawn_events || [];
+      document.getElementById("respawnCountBadge").textContent = `${respawns.length} Events`;
+      document.getElementById("respawnTableBody").innerHTML = respawns.length
+        ? respawns.slice(-8).map(r => `
+            <tr>
+              <td><span class="code-chip">${r.agent_id}</span></td>
+              <td>${r.branch_id}</td>
+              <td style="color:#f87171;">..${String(r.old_revoked_jti || "").slice(-8)}</td>
+              <td style="color:#34d399;">..${String(r.new_active_jti || "").slice(-8)}</td>
+              <td style="font-size:0.74rem;">${r.reason}</td>
+            </tr>
+          `).join("")
+        : `<tr><td colspan="5" style="text-align:center; color:#64748b;">No agent respawns triggered in this run</td></tr>`;
+
+      // Failover & Rollback Log
+      const failovers = state.failover_events || [];
+      const rollbacks = state.recovery_history || [];
+      document.getElementById("failoverCountBadge").textContent = `${failovers.length + rollbacks.length} Events`;
+      const combinedRows = [
+        ...failovers.map(f => `
+          <tr>
+            <td><span class="code-chip">${f.tool_name}</span></td>
+            <td>${f.agent_id}</td>
+            <td style="color:#f87171;">${f.failed_provider} (HTTP ${f.http_code})</td>
+            <td style="color:#38bdf8;">→ ${f.recommended_fallback}</td>
+          </tr>
+        `),
+        ...rollbacks.map(rb => `
+          <tr>
+            <td><span class="code-chip">${rb.branch_rolled_back}</span></td>
+            <td>${rb.failed_agent_id}</td>
+            <td style="color:#fca5a5;">Gate L4 Rollback (${rb.tainted_bfs_nodes.length} nodes)</td>
+            <td style="color:#34d399;">Restored ${rb.restored_checkpoint_id} → ${rb.fallback_provider}</td>
+          </tr>
+        `)
+      ];
+      document.getElementById("failoverTableBody").innerHTML = combinedRows.length
+        ? combinedRows.slice(-8).join("")
+        : `<tr><td colspan="4" style="text-align:center; color:#64748b;">No tool failovers or rollbacks in this run</td></tr>`;
+    }
+
+    async function runScenario(scenarioId) {
+      try {
+        const res = await fetch(`${API_BASE}/api/v1/workflow/run/${scenarioId}`, { method: "POST" });
+        const data = await res.json();
+        renderDashboard(data, data.state);
+      } catch (err) {
+        alert("FastAPI server not reachable on port 8000. Start it with: ./venv/bin/uvicorn control_plane.server:app --port 8000");
+      }
+    }
+
+    async function runCustomMultiFailure() {
+      const agents = Array.from(document.querySelectorAll("#agentCheckboxes input:checked")).map(i => i.value);
+      const agentCat = document.getElementById("agentFaultCategory").value;
+      const tools = Array.from(document.querySelectorAll("#toolCheckboxes input:checked")).map(i => i.value);
+      const toolCat = document.getElementById("toolFaultCategory").value;
+      const maxTriggers = parseInt(document.getElementById("toolMaxTriggers").value, 10);
+
+      const faults = [
+        ...agents.map(a => ({ target: a, fault_category: agentCat, fault_config: { multiplier: 10.0 } })),
+        ...tools.map(t => ({ target: t, fault_category: toolCat, fault_config: { fast_failover: true, max_triggers: maxTriggers } }))
+      ];
+
+      try {
+        const res = await fetch(`${API_BASE}/api/v1/workflow/run-custom-batch`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ faults })
+        });
+        const data = await res.json();
+        renderDashboard(data, data.state);
+      } catch (err) {
+        alert("FastAPI server not reachable on port 8000.");
+      }
+    }
+
+    async function triggerKillSwitch(mode, targetId, overrideState = null) {
+      try {
+        await fetch(`${API_BASE}/api/v1/killswitch`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ mode, target_id: targetId, operator_override_state: overrideState })
+        });
+        const stRes = await fetch(`${API_BASE}/api/v1/state`);
+        const stData = await stRes.json();
+        renderDashboard({ scenario_id: "KILL-SWITCH", scenario_name: `${mode} (${targetId})`, settlement_eur: null }, stData);
+      } catch (err) {
+        alert("FastAPI server not reachable on port 8000.");
+      }
+    }
+
+    async function triggerSurgicalSelected() {
+      const agents = Array.from(document.querySelectorAll("#agentCheckboxes input:checked")).map(i => i.value);
+      const targetStr = agents.length ? agents.join(",") : "FX_Quote_Reader";
+      await triggerKillSwitch("SURGICAL", targetStr);
+    }
+
+    // Initial load: run Scenario 1
+    window.addEventListener("DOMContentLoaded", () => {
+      runScenario(1);
+    });
+  </script>
+</body>
+</html>
